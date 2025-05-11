@@ -6,9 +6,9 @@ require('./config/mongo'); // connect MongoDB
 
 // Konfigurasi CORS untuk mengizinkan akses dari localhost:5500
 const corsOptions = {
-  origin: 'http://localhost:5500', // hanya mengizinkan origin dari localhost:5500
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Anda dapat menambahkan metode lain jika diperlukan
-  allowedHeaders: ['Content-Type'], // Memungkinkan header content-type
+  origin: 'http://localhost:5500', 
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], 
+  allowedHeaders: ['Content-Type'], 
 };
 
 app.use(cors(corsOptions)); // Terapkan CORS dengan konfigurasi
