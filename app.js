@@ -11,6 +11,11 @@ const corsOptions = {
   allowedHeaders: ['Content-Type'], 
 };
 
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/index.html'); // agar saat buka di browser langsung tampil HTML-nya
+});
+
+
 app.use(cors(corsOptions)); // Terapkan CORS dengan konfigurasi
 
 app.use(express.json());
