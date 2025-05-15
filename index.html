@@ -19,45 +19,53 @@
 
     h1 {
       text-align: center;
+      margin-bottom: 30px;
     }
 
-    .container {
-      max-width: 800px;
-      margin: auto;
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    @media (min-width: 768px) {
+      .grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
     }
 
     .card {
       background: #fff;
-      padding: 20px;
-      margin-top: 20px;
+      padding: 15px;
       border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
     }
 
     label {
       display: block;
       margin-top: 10px;
-      font-weight: bold;
+      font-weight: 600;
     }
 
     input,
     textarea,
     select {
       width: 100%;
-      padding: 10px;
-      margin-top: 5px;
+      padding: 8px;
+      margin-top: 4px;
       border: 1px solid #ccc;
-      border-radius: 6px;
+      border-radius: 5px;
     }
 
     button {
-      margin-top: 15px;
-      padding: 10px 20px;
+      margin-top: 12px;
+      padding: 8px 14px;
       background: #007bff;
-      color: white;
+      color: #fff;
       border: none;
-      border-radius: 6px;
+      border-radius: 5px;
       cursor: pointer;
+      width: 100%;
     }
 
     button:hover {
@@ -65,156 +73,77 @@
     }
 
     .result {
-      margin-top: 20px;
+      margin-top: 10px;
+      font-size: 14px;
     }
 
     .article {
-      padding: 15px;
+      padding: 10px;
       background: #e9ecef;
-      border-radius: 6px;
-    }
-
-    @media (max-width: 600px) {
-      .container {
-        padding: 10px;
-      }
+      border-radius: 5px;
+      margin-top: 10px;
     }
   </style>
 </head>
 
 <body>
-  <div class="container">
-    <h1>Knowledge Base</h1>
+  <h1>Knowledge Base</h1>
 
+  <div class="grid">
+    <!-- Create & Update -->
     <div class="card">
-      <h2>Buat Artikel Baru</h2>
-      <label>User ID:</label>
-      <input type="number" id="userId" />
+      <h2>Buat / Update Artikel</h2>
 
-      <label>Judul:</label>
+      <label>User ID</label>
+      <input type="number" id="userId" placeholder="User ID (untuk membuat)" />
+
+      <label>ID Artikel (untuk update)</label>
+      <input type="number" id="updateId" placeholder="Kosongkan jika membuat baru" />
+
+      <label>Judul</label>
       <input type="text" id="title" />
 
-      <label>Slug:</label>
+      <label>Slug</label>
       <input type="text" id="slug" />
 
-      <label>Status:</label>
+      <label>Status</label>
       <select id="status">
         <option value="draft">Draft</option>
-        <option value="published" selected>Published</option>
+        <option value="published">Published</option>
       </select>
 
-      <label>Konten:</label>
-      <textarea id="content" rows="5"></textarea>
+      <label>Konten</label>
+      <textarea id="content" rows="4"></textarea>
 
-      <button onclick="submitArticle()">Kirim Artikel</button>
+      <button onclick="handleSubmit()">Kirim / Update</button>
       <div id="postResult" class="result"></div>
     </div>
 
+    <!-- Read & Delete -->
     <div class="card">
-      <h2>Lihat Artikel</h2>
-      <label>ID Artikel:</label>
-      <input type="number" id="articleId" />
-      <button onclick="getArticle()">Lihat Artikel</button>
+      <h2>Lihat / Hapus Artikel</h2>
+
+      <label>ID Artikel</label>
+      <input type="number" id="articleId" placeholder="ID untuk lihat atau hapus" />
+
+      <div style="display: flex; gap: 10px;">
+        <button style="flex: 1;" onclick="getArticle()">Lihat</button>
+        <button style="flex: 1; background: #dc3545;" onclick="deleteArticle()">Hapus</button>
+      </div>
+
       <div id="getResult" class="result"></div>
     </div>
   </div>
 
-  <div class="card">
-    <h2>Update Artikel</h2>
-    <label>ID Artikel:</label>
-    <input type="number" id="updateId" />
-
-    <label>Judul Baru:</label>
-    <input type="text" id="updateTitle" />
-
-    <label>Slug Baru:</label>
-    <input type="text" id="updateSlug" />
-
-    <label>Status Baru:</label>
-    <select id="updateStatus">
-      <option value="draft">Draft</option>
-      <option value="published">Published</option>
-    </select>
-
-    <label>Konten Baru:</label>
-    <textarea id="updateContent" rows="5"></textarea>
-
-    <button onclick="updateArticle()">Update Artikel</button>
-    <div id="updateResult" class="result"></div>
-  </div>
-
-  <div class="card">
-  <h2>Hapus Artikel</h2>
-  <label>ID Artikel yang ingin dihapus:</label>
-  <input type="number" id="deleteId" />
-
-  <button onclick="deleteArticle()">Hapus Artikel</button>
-  <div id="deleteResult" class="result"></div>
-</div>
-
-
   <script>
-
-    // Function to update article by ID (PUT)
-    async function updateArticle() {
+    async function handleSubmit() {
       const id = document.getElementById('updateId').value;
+      const isUpdate = !!id;
+      const url = isUpdate ? `http://localhost:3000/api/articles/${id}` : 'http://localhost:3000/api/articles';
+      const method = isUpdate ? 'PUT' : 'POST';
+
       const data = {
-        title: document.getElementById('updateTitle').value,
-        slug: document.getElementById('updateSlug').value,
-        status: document.getElementById('updateStatus').value,
-        content: document.getElementById('updateContent').value,
-      };
-
-      try {
-        const res = await fetch(`http://localhost:3000/api/articles/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-
-        if (!res.ok) {
-          const error = await res.json();
-          document.getElementById('updateResult').innerText = error.error || 'Gagal update artikel';
-        } else {
-          const result = await res.json();
-          document.getElementById('updateResult').innerText = result.message || 'Artikel berhasil diperbarui!';
-        }
-      } catch (error) {
-        document.getElementById('updateResult').innerText = `Error: ${error.message}`;
-      }
-    }
-
-    // Function to delete article by ID
-async function deleteArticle() {
-  const id = document.getElementById('deleteId').value;
-
-  if (!id) {
-    document.getElementById('deleteResult').innerText = 'Masukkan ID artikel yang ingin dihapus.';
-    return;
-  }
-
-  try {
-    const res = await fetch(`http://localhost:3000/api/articles/${id}`, {
-      method: 'DELETE'
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      document.getElementById('deleteResult').innerText = data.error || 'Gagal menghapus artikel.';
-    } else {
-      document.getElementById('deleteResult').innerText = data.message || 'Artikel berhasil dihapus!';
-    }
-  } catch (error) {
-    document.getElementById('deleteResult').innerText = `Error: ${error.message}`;
-  }
-}
-
-
-    // Function to submit article
-    async function submitArticle() {
-      const data = {
-        userId: document.getElementById('userId').value,
+        userId: document.getElementById('userId').value || undefined,
         title: document.getElementById('title').value,
         slug: document.getElementById('slug').value,
         status: document.getElementById('status').value,
@@ -222,53 +151,58 @@ async function deleteArticle() {
       };
 
       try {
-        // Send POST request
-        const res = await fetch('http://localhost:3000/api/articles', {
-          method: 'POST',
+        const res = await fetch(url, {
+          method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
         });
 
-        if (!res.ok) {
-          const error = await res.json();
-          document.getElementById('postResult').innerText = error.error || 'Something went wrong';
-        } else {
-          const result = await res.json();
-          document.getElementById('postResult').innerText = result.message || 'Article posted successfully!';
-        }
+        const result = await res.json();
+        document.getElementById('postResult').innerText = res.ok ? result.message || 'Sukses!' : result.error || 'Terjadi kesalahan.';
       } catch (error) {
-        // Handle fetch error
         document.getElementById('postResult').innerText = `Error: ${error.message}`;
       }
     }
 
-    // Function to get article by ID
     async function getArticle() {
       const id = document.getElementById('articleId').value;
+      if (!id) return;
+
       try {
         const res = await fetch(`http://localhost:3000/api/articles/${id}`);
+        const data = await res.json();
 
         if (!res.ok) {
-          const error = await res.json();
-          document.getElementById('getResult').innerHTML = `<p style="color:red;">${error.error}</p>`;
+          document.getElementById('getResult').innerHTML = `<p style="color:red;">${data.error}</p>`;
           return;
         }
 
-        const article = await res.json();
-
-        // Display the article content
-        const container = document.getElementById('getResult');
-        container.innerHTML = `
+        document.getElementById('getResult').innerHTML = `
           <div class="article">
-            <h3>${article.title}</h3>
-            <small>Slug: ${article.slug} | Status: ${article.status}</small>
-            <p><strong>Dibuat:</strong> ${new Date(article.createdAt).toLocaleString()}</p>
-            <p><strong>Konten:</strong><br>${article.content}</p>
+            <h3>${data.title}</h3>
+            <small>Slug: ${data.slug} | Status: ${data.status}</small>
+            <p><strong>Dibuat:</strong> ${new Date(data.createdAt).toLocaleString()}</p>
+            <p>${data.content}</p>
           </div>
         `;
       } catch (error) {
-        // Handle fetch error
         document.getElementById('getResult').innerHTML = `<p style="color:red;">Error: ${error.message}</p>`;
+      }
+    }
+
+    async function deleteArticle() {
+      const id = document.getElementById('articleId').value;
+      if (!id) return;
+
+      try {
+        const res = await fetch(`http://localhost:3000/api/articles/${id}`, {
+          method: 'DELETE'
+        });
+
+        const result = await res.json();
+        document.getElementById('getResult').innerText = res.ok ? result.message || 'Artikel dihapus.' : result.error || 'Gagal menghapus.';
+      } catch (error) {
+        document.getElementById('getResult').innerText = `Error: ${error.message}`;
       }
     }
   </script>
