@@ -19,41 +19,35 @@ exports.createArticle = async (req, res) => {
   }
 };
 
-// ✅ Tambahkan method untuk mendapatkan artikel berdasarkan ID
-exports.getArticleById = async (req, res) => {
-  const articleId = parseInt(req.params.id, 10);  // Pastikan kita mendapatkan ID sebagai integer
-
+// GET all articles
+exports.getAllArticles = async (req, res) => {
   try {
-    // Ambil metadata artikel dari MySQL
-    const metadata = await ArticleMetadata.findByPk(articleId);
+    // Ambil semua metadata artikel dari MySQL
+    const metadatas = await ArticleMetadata.findAll();
 
-    if (!metadata) {
-      return res.status(404).json({ error: 'Article metadata not found' });
-    }
+    // Ambil konten artikel dari MongoDB berdasarkan setiap metadata
+    const articles = await Promise.all(
+      metadatas.map(async (metadata) => {
+        const content = await Article.findOne({ articleId: metadata.id });
+        return {
+          id: metadata.id,
+          title: metadata.title,
+          slug: metadata.slug,
+          status: metadata.status,
+          createdAt: metadata.createdAt,
+          updatedAt: metadata.updatedAt,
+          content: content ? content.content : null,
+          revisions: content ? content.revisions : []
+        };
+      })
+    );
 
-    // Ambil konten artikel dari MongoDB
-    const content = await Article.findOne({ articleId });
-
-    if (!content) {
-      return res.status(404).json({ error: 'Article content not found' });
-    }
-
-    // Gabungkan metadata dan konten dan kirimkan sebagai respons
-    res.json({
-      id: metadata.id,
-      title: metadata.title,
-      slug: metadata.slug,
-      status: metadata.status,
-      createdAt: metadata.createdAt,
-      updatedAt: metadata.updatedAt,
-      content: content.content,
-      revisions: content.revisions
-    });
-
+    res.json(articles);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 // Update artikel berdasarkan ID
 exports.updateArticle = async (req, res) => {

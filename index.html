@@ -4,39 +4,56 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Knowledge Base</title>
+  <title>Admin Panel - Knowledge Base</title>
   <style>
     * {
       box-sizing: border-box;
     }
 
     body {
-      font-family: 'Segoe UI', sans-serif;
       margin: 0;
-      padding: 20px;
-      background: #f8f9fa;
-    }
-
-    h1 {
-      text-align: center;
-      margin-bottom: 30px;
-    }
-
-    .grid {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f1f3f5;
       display: grid;
-      grid-template-columns: 1fr;
-      gap: 20px;
+      grid-template-columns: 250px 1fr;
+      min-height: 100vh;
     }
 
-    @media (min-width: 768px) {
-      .grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
+    .sidebar {
+      background: #343a40;
+      color: white;
+      padding: 20px;
+    }
+
+    .sidebar h2 {
+      margin-top: 0;
+      font-size: 20px;
+      text-align: center;
+    }
+
+    .menu a {
+      display: block;
+      padding: 12px;
+      margin-top: 10px;
+      text-decoration: none;
+      color: white;
+      background: #495057;
+      border-radius: 5px;
+      transition: background 0.3s;
+    }
+
+    .menu a:hover,
+    .menu a.active {
+      background: #007bff;
+    }
+
+    .main {
+      padding: 30px;
     }
 
     .card {
       background: #fff;
-      padding: 15px;
+      padding: 20px;
       border-radius: 8px;
       box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
     }
@@ -59,22 +76,16 @@
 
     button {
       margin-top: 12px;
-      padding: 8px 14px;
+      padding: 10px 16px;
       background: #007bff;
       color: #fff;
       border: none;
       border-radius: 5px;
       cursor: pointer;
-      width: 100%;
     }
 
     button:hover {
       background: #0056b3;
-    }
-
-    .result {
-      margin-top: 10px;
-      font-size: 14px;
     }
 
     .article {
@@ -83,126 +94,203 @@
       border-radius: 5px;
       margin-top: 10px;
     }
+
+    .result {
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        grid-row: 1;
+        display: flex;
+        flex-direction: row;
+        overflow-x: auto;
+      }
+
+      .menu a {
+        margin-right: 10px;
+        white-space: nowrap;
+      }
+    }
   </style>
 </head>
 
 <body>
-  <h1>Knowledge Base</h1>
+  <div class="sidebar">
+    <h2>Knowledge-base</h2>
+    <div class="menu">
+      <a href="#" class="active" onclick="showSection('create')">Buat artikel</a>
+      <a href="#" onclick="showSection('read')">Semua artikel</a>
+      <a href="#" onclick="showSection('update')">Update artikel</a>
+      <a href="#" onclick="showSection('delete')">Hapus artikel</a>
+    </div>
+  </div>
 
-  <div class="grid">
-    <!-- Create & Update -->
-    <div class="card">
-      <h2>Buat / Update Artikel</h2>
-
+  <div class="main">
+    <!-- CREATE -->
+    <div class="card" id="section-create">
+      <h2>Create Artikel</h2>
       <label>User ID</label>
-      <input type="number" id="userId" placeholder="User ID (untuk membuat)" />
-
-      <label>ID Artikel (untuk update)</label>
-      <input type="number" id="updateId" placeholder="Kosongkan jika membuat baru" />
-
+      <input type="number" id="createUserId" />
       <label>Judul</label>
-      <input type="text" id="title" />
-
+      <input type="text" id="createTitle" />
       <label>Slug</label>
-      <input type="text" id="slug" />
-
+      <input type="text" id="createSlug" />
       <label>Status</label>
-      <select id="status">
+      <select id="createStatus">
         <option value="draft">Draft</option>
         <option value="published">Published</option>
       </select>
-
       <label>Konten</label>
-      <textarea id="content" rows="4"></textarea>
-
-      <button onclick="handleSubmit()">Kirim / Update</button>
-      <div id="postResult" class="result"></div>
+      <textarea id="createContent" rows="4"></textarea>
+      <button onclick="createArticle()">Submit</button>
+      <div id="createResult" class="result"></div>
     </div>
 
-    <!-- Read & Delete -->
-    <div class="card">
-      <h2>Lihat / Hapus Artikel</h2>
+    <!-- READ -->
+    <div class="card hidden" id="section-read">
+      <h2>Semua Artikel</h2>
+      <div id="readResult" class="result"></div>
+    </div>
 
+    <!-- UPDATE -->
+    <div class="card hidden" id="section-update">
+      <h2>Update Artikel</h2>
       <label>ID Artikel</label>
-      <input type="number" id="articleId" placeholder="ID untuk lihat atau hapus" />
+      <input type="number" id="updateId" />
+      <label>Judul</label>
+      <input type="text" id="updateTitle" />
+      <label>Slug</label>
+      <input type="text" id="updateSlug" />
+      <label>Status</label>
+      <select id="updateStatus">
+        <option value="draft">Draft</option>
+        <option value="published">Published</option>
+      </select>
+      <label>Konten</label>
+      <textarea id="updateContent" rows="4"></textarea>
+      <button onclick="updateArticle()">Update</button>
+      <div id="updateResult" class="result"></div>
+    </div>
 
-      <div style="display: flex; gap: 10px;">
-        <button style="flex: 1;" onclick="getArticle()">Lihat</button>
-        <button style="flex: 1; background: #dc3545;" onclick="deleteArticle()">Hapus</button>
-      </div>
-
-      <div id="getResult" class="result"></div>
+    <!-- DELETE -->
+    <div class="card hidden" id="section-delete">
+      <h2>Hapus Artikel</h2>
+      <label>ID Artikel</label>
+      <input type="number" id="deleteId" />
+      <button style="background:#dc3545;" onclick="deleteArticle()">Hapus</button>
+      <div id="deleteResult" class="result"></div>
     </div>
   </div>
 
   <script>
-    async function handleSubmit() {
-      const id = document.getElementById('updateId').value;
-      const isUpdate = !!id;
-      const url = isUpdate ? `http://localhost:3000/api/articles/${id}` : 'http://localhost:3000/api/articles';
-      const method = isUpdate ? 'PUT' : 'POST';
+    const sections = ['create', 'read', 'update', 'delete'];
 
+    function showSection(name) {
+      sections.forEach(s => {
+        document.getElementById(`section-${s}`).classList.add('hidden');
+        document.querySelector(`.menu a[href="#"][onclick*="${s}"]`).classList.remove('active');
+      });
+      document.getElementById(`section-${name}`).classList.remove('hidden');
+      document.querySelector(`.menu a[href="#"][onclick*="${name}"]`).classList.add('active');
+
+      if (name === 'read') loadArticles();
+    }
+
+    async function createArticle() {
       const data = {
-        userId: document.getElementById('userId').value || undefined,
-        title: document.getElementById('title').value,
-        slug: document.getElementById('slug').value,
-        status: document.getElementById('status').value,
-        content: document.getElementById('content').value,
+        userId: document.getElementById('createUserId').value,
+        title: document.getElementById('createTitle').value,
+        slug: document.getElementById('createSlug').value,
+        status: document.getElementById('createStatus').value,
+        content: document.getElementById('createContent').value,
       };
 
       try {
-        const res = await fetch(url, {
-          method,
+        const res = await fetch('http://localhost:3000/api/articles', {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
+          body: JSON.stringify(data),
         });
-
         const result = await res.json();
-        document.getElementById('postResult').innerText = res.ok ? result.message || 'Sukses!' : result.error || 'Terjadi kesalahan.';
-      } catch (error) {
-        document.getElementById('postResult').innerText = `Error: ${error.message}`;
+        document.getElementById('createResult').innerText = res.ok ? result.message || 'Sukses!' : result.error;
+      } catch (err) {
+        document.getElementById('createResult').innerText = 'Gagal membuat artikel.';
       }
     }
 
-    async function getArticle() {
-      const id = document.getElementById('articleId').value;
-      if (!id) return;
-
+    async function loadArticles() {
       try {
-        const res = await fetch(`http://localhost:3000/api/articles/${id}`);
+        const res = await fetch('http://localhost:3000/api/articles');
         const data = await res.json();
-
+        const container = document.getElementById('readResult');
         if (!res.ok) {
-          document.getElementById('getResult').innerHTML = `<p style="color:red;">${data.error}</p>`;
+          container.innerHTML = `<p style="color:red;">${data.error}</p>`;
           return;
         }
+        container.innerHTML = data.map(article => `
+          <div class="article" style="background:#fff; padding:16px; border-radius:8px; margin-bottom:16px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom:8px;">
+    <h4 style="margin: 0; color: #555;">ID: ${article.id}</h4>
+    <small style="color: #888;">Dibuat pada: ${new Date(article.createdAt).toLocaleString()}</small>
+  </div>
+  
+  <small style="color: #666; display: block; margin-bottom: 8px;">
+    Slug: <em>${article.slug}</em> | Status: <strong>${article.status}</strong>
+  </small>
 
-        document.getElementById('getResult').innerHTML = `
-          <div class="article">
-            <h3>${data.title}</h3>
-            <small>Slug: ${data.slug} | Status: ${data.status}</small>
-            <p><strong>Dibuat:</strong> ${new Date(data.createdAt).toLocaleString()}</p>
-            <p>${data.content}</p>
-          </div>
-        `;
-      } catch (error) {
-        document.getElementById('getResult').innerHTML = `<p style="color:red;">Error: ${error.message}</p>`;
+  <h3 style="margin-top: 0; color: #222;">${article.title}</h3>
+  
+  <p style="line-height: 1.5; color: #333; margin-top: 8px;">${article.content}</p>
+</div>
+
+        `).join('');
+      } catch (err) {
+        document.getElementById('readResult').innerText = 'Gagal memuat data.';
+      }
+    }
+
+    async function updateArticle() {
+      const id = document.getElementById('updateId').value;
+      const data = {
+        title: document.getElementById('updateTitle').value,
+        slug: document.getElementById('updateSlug').value,
+        status: document.getElementById('updateStatus').value,
+        content: document.getElementById('updateContent').value,
+      };
+
+      try {
+        const res = await fetch(`http://localhost:3000/api/articles/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        const result = await res.json();
+        document.getElementById('updateResult').innerText = res.ok ? result.message || 'Berhasil diupdate.' : result.error;
+      } catch (err) {
+        document.getElementById('updateResult').innerText = 'Gagal update artikel.';
       }
     }
 
     async function deleteArticle() {
-      const id = document.getElementById('articleId').value;
-      if (!id) return;
-
+      const id = document.getElementById('deleteId').value;
       try {
         const res = await fetch(`http://localhost:3000/api/articles/${id}`, {
-          method: 'DELETE'
+          method: 'DELETE',
         });
-
         const result = await res.json();
-        document.getElementById('getResult').innerText = res.ok ? result.message || 'Artikel dihapus.' : result.error || 'Gagal menghapus.';
-      } catch (error) {
-        document.getElementById('getResult').innerText = `Error: ${error.message}`;
+        document.getElementById('deleteResult').innerText = res.ok ? result.message || 'Berhasil dihapus.' : result.error;
+      } catch (err) {
+        document.getElementById('deleteResult').innerText = 'Gagal hapus artikel.';
       }
     }
   </script>
