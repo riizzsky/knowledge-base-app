@@ -6,12 +6,19 @@ exports.createArticle = async (req, res) => {
     const { userId, title, slug, status, content } = req.body;
     const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
 
-    const metadata = await ArticleMetadata.create({ title, slug, status, UserId: userId });
+    // Simpan metadata DAN image path ke MySQL
+    const metadata = await ArticleMetadata.create({ 
+      title, 
+      slug, 
+      status, 
+      image: imagePath, // Simpan image path di MySQL
+      UserId: userId 
+    });
 
+    // Simpan hanya content dan revisions ke MongoDB
     await Article.create({
       articleId: metadata.id,
       content,
-      image: imagePath,
       revisions: [{ updatedAt: new Date(), content }]
     });
 
@@ -24,7 +31,7 @@ exports.createArticle = async (req, res) => {
 // GET all articles
 exports.getAllArticles = async (req, res) => {
   try {
-    // Ambil semua metadata artikel dari MySQL
+    // Ambil semua metadata artikel dari MySQL (termasuk image)
     const metadatas = await ArticleMetadata.findAll();
 
     // Ambil konten artikel dari MongoDB berdasarkan setiap metadata
@@ -36,10 +43,10 @@ exports.getAllArticles = async (req, res) => {
           title: metadata.title,
           slug: metadata.slug,
           status: metadata.status,
+          image: metadata.image, // Ambil image dari MySQL
           createdAt: metadata.createdAt,
           updatedAt: metadata.updatedAt,
           content: content ? content.content : null,
-          image: content ? content.image : null, 
           revisions: content ? content.revisions : []
         };
       })
@@ -51,21 +58,26 @@ exports.getAllArticles = async (req, res) => {
   }
 };
 
-
 // Update artikel berdasarkan ID
 exports.updateArticle = async (req, res) => {
-  const articleId = parseInt(req.params.id, 10); // pastikan dalam bentuk integer
+  const articleId = parseInt(req.params.id, 10);
   const { title, slug, status, content } = req.body;
   const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
 
   try {
-    // Update metadata (MySQL)
+    // Update metadata DAN image di MySQL
     const metadata = await ArticleMetadata.findByPk(articleId);
     if (!metadata) {
       return res.status(404).json({ error: 'Article metadata not found' });
     }
 
-    await metadata.update({ title, slug, status });
+    // Prepare update data untuk MySQL
+    const updateData = { title, slug, status };
+    if (imagePath) {
+      updateData.image = imagePath; // Update image path di MySQL
+    }
+
+    await metadata.update(updateData);
 
     // Update content & tambah revisi di MongoDB
     const article = await Article.findOne({ articleId });
@@ -74,11 +86,6 @@ exports.updateArticle = async (req, res) => {
     }
 
     article.content = content;
-
-    if (imagePath) {
-      article.image = imagePath;
-    }
-
     article.revisions.push({ updatedAt: new Date(), content });
 
     await article.save();
@@ -89,14 +96,14 @@ exports.updateArticle = async (req, res) => {
   }
 };
 
-exports. deleteArticle = async (req, res) => {
+exports.deleteArticle = async (req, res) => {
   const articleId = parseInt(req.params.id, 10);
 
   try {
     // Hapus konten dari MongoDB terlebih dahulu
     await Article.deleteOne({ articleId });
 
-    // Hapus metadata dari MySQL
+    // Hapus metadata (termasuk image path) dari MySQL
     const deleted = await ArticleMetadata.destroy({ where: { id: articleId } });
 
     if (!deleted) {

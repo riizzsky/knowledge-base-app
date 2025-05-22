@@ -12,11 +12,11 @@ const corsOptions = {
 };
 
 app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/index.html'); // agar saat buka di browser langsung tampil HTML-nya
+  res.sendFile(__dirname + '/index.html'); 
 });
 
 
-app.use(cors(corsOptions)); // Terapkan CORS dengan konfigurasi
+app.use(cors(corsOptions)); 
 
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));

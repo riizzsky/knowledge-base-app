@@ -11,6 +11,7 @@ const ArticleMetadata = sequelize.define('ArticleMetadata', {
   title: DataTypes.STRING,
   slug: DataTypes.STRING,
   status: DataTypes.STRING,
+  image: DataTypes.STRING,
 });
 
 User.hasMany(ArticleMetadata);
