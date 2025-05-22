@@ -89,10 +89,11 @@
     }
 
     .article {
-      padding: 10px;
-      background: #e9ecef;
-      border-radius: 5px;
-      margin-top: 10px;
+      padding: 16px;
+      background: #fff;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
 
     .result {
@@ -100,8 +101,38 @@
       font-size: 14px;
     }
 
+    .success {
+      color: #28a745;
+      font-weight: 600;
+    }
+
+    .error {
+      color: #dc3545;
+      font-weight: 600;
+    }
+
     .hidden {
       display: none;
+    }
+
+    .article-image {
+      max-width: 200px;
+      height: auto;
+      border-radius: 4px;
+      margin: 8px 0;
+    }
+
+    .revisions {
+      margin-top: 12px;
+      padding: 8px;
+      background: #f8f9fa;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .revision-item {
+      margin-bottom: 4px;
+      color: #666;
     }
 
     @media (max-width: 768px) {
@@ -140,18 +171,20 @@
     <div class="card" id="section-create">
       <h2>Create Artikel</h2>
       <label>User ID</label>
-      <input type="number" id="createUserId" />
+      <input type="number" id="createUserId" required />
       <label>Judul</label>
-      <input type="text" id="createTitle" />
+      <input type="text" id="createTitle" required />
       <label>Slug</label>
-      <input type="text" id="createSlug" />
+      <input type="text" id="createSlug" required />
       <label>Status</label>
       <select id="createStatus">
         <option value="draft">Draft</option>
         <option value="published">Published</option>
       </select>
       <label>Konten</label>
-      <textarea id="createContent" rows="4"></textarea>
+      <textarea id="createContent" rows="4" required></textarea>
+      <label>Gambar (Opsional)</label>
+      <input type="file" id="createImage" accept="image/*" />
       <button onclick="createArticle()">Submit</button>
       <div id="createResult" class="result"></div>
     </div>
@@ -159,6 +192,7 @@
     <!-- READ -->
     <div class="card hidden" id="section-read">
       <h2>Semua Artikel</h2>
+      <button onclick="loadArticles()" style="margin-bottom: 20px;">Refresh Data</button>
       <div id="readResult" class="result"></div>
     </div>
 
@@ -166,7 +200,8 @@
     <div class="card hidden" id="section-update">
       <h2>Update Artikel</h2>
       <label>ID Artikel</label>
-      <input type="number" id="updateId" />
+      <input type="number" id="updateId" required />
+      <button onclick="loadArticleForUpdate()" style="background: #28a745; margin-bottom: 15px;">Load Data Artikel</button>
       <label>Judul</label>
       <input type="text" id="updateTitle" />
       <label>Slug</label>
@@ -178,6 +213,8 @@
       </select>
       <label>Konten</label>
       <textarea id="updateContent" rows="4"></textarea>
+      <label>Gambar Baru (Opsional)</label>
+      <input type="file" id="updateImage" accept="image/*" />
       <button onclick="updateArticle()">Update</button>
       <div id="updateResult" class="result"></div>
     </div>
@@ -186,14 +223,17 @@
     <div class="card hidden" id="section-delete">
       <h2>Hapus Artikel</h2>
       <label>ID Artikel</label>
-      <input type="number" id="deleteId" />
-      <button style="background:#dc3545;" onclick="deleteArticle()">Hapus</button>
+      <input type="number" id="deleteId" required />
+      <button onclick="previewDelete()" style="background: #ffc107; color: #000;">Preview Artikel</button>
+      <div id="deletePreview" style="margin: 15px 0;"></div>
+      <button style="background:#dc3545;" onclick="deleteArticle()">Hapus Artikel</button>
       <div id="deleteResult" class="result"></div>
     </div>
   </div>
 
   <script>
     const sections = ['create', 'read', 'update', 'delete'];
+    const API_BASE = 'http://localhost:3000/api/articles';
 
     function showSection(name) {
       sections.forEach(s => {
@@ -206,93 +246,251 @@
       if (name === 'read') loadArticles();
     }
 
+    function showResult(elementId, message, isSuccess = true) {
+      const element = document.getElementById(elementId);
+      element.innerHTML = message;
+      element.className = `result ${isSuccess ? 'success' : 'error'}`;
+    }
+
+    function clearForm(prefix) {
+      const inputs = document.querySelectorAll(`[id^="${prefix}"]`);
+      inputs.forEach(input => {
+        if (input.type === 'file') {
+          input.value = '';
+        } else if (input.tagName === 'SELECT') {
+          input.selectedIndex = 0;
+        } else if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') {
+          input.value = '';
+        }
+      });
+    }
+
     async function createArticle() {
-      const data = {
-        userId: document.getElementById('createUserId').value,
-        title: document.getElementById('createTitle').value,
-        slug: document.getElementById('createSlug').value,
-        status: document.getElementById('createStatus').value,
-        content: document.getElementById('createContent').value,
-      };
+      const userId = document.getElementById('createUserId').value;
+      const title = document.getElementById('createTitle').value;
+      const slug = document.getElementById('createSlug').value;
+      const status = document.getElementById('createStatus').value;
+      const content = document.getElementById('createContent').value;
+      const imageFile = document.getElementById('createImage').files[0];
+
+      if (!userId || !title || !slug || !content) {
+        showResult('createResult', 'Harap isi semua field yang wajib!', false);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('userId', userId);
+      formData.append('title', title);
+      formData.append('slug', slug);
+      formData.append('status', status);
+      formData.append('content', content);
+      if (imageFile) {
+        formData.append('image', imageFile);
+      }
 
       try {
-        const res = await fetch('http://localhost:3000/api/articles', {
+        const res = await fetch(API_BASE, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
+          body: formData,
         });
         const result = await res.json();
-        document.getElementById('createResult').innerText = res.ok ? result.message || 'Sukses!' : result.error;
+        
+        if (res.ok) {
+          showResult('createResult', result.message || 'Artikel berhasil dibuat!', true);
+          clearForm('create');
+        } else {
+          showResult('createResult', result.error || 'Gagal membuat artikel.', false);
+        }
       } catch (err) {
-        document.getElementById('createResult').innerText = 'Gagal membuat artikel.';
+        showResult('createResult', 'Terjadi kesalahan jaringan.', false);
       }
     }
 
     async function loadArticles() {
       try {
-        const res = await fetch('http://localhost:3000/api/articles');
+        const res = await fetch(API_BASE);
         const data = await res.json();
         const container = document.getElementById('readResult');
+        
         if (!res.ok) {
-          container.innerHTML = `<p style="color:red;">${data.error}</p>`;
+          container.innerHTML = `<p class="error">${data.error}</p>`;
           return;
         }
+
+        if (data.length === 0) {
+          container.innerHTML = '<p>Belum ada artikel.</p>';
+          return;
+        }
+
         container.innerHTML = data.map(article => `
-          <div class="article" style="background:#fff; padding:16px; border-radius:8px; margin-bottom:16px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom:8px;">
-    <h4 style="margin: 0; color: #555;">ID: ${article.id}</h4>
-    <small style="color: #888;">Dibuat pada: ${new Date(article.createdAt).toLocaleString()}</small>
-  </div>
-  
-  <small style="color: #666; display: block; margin-bottom: 8px;">
-    Slug: <em>${article.slug}</em> | Status: <strong>${article.status}</strong>
-  </small>
+          <div class="article">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom:8px;">
+              <h4 style="margin: 0; color: #555;">ID: ${article.id}</h4>
+              <small style="color: #888;">Dibuat: ${new Date(article.createdAt).toLocaleString()}</small>
+            </div>
+            
+            <small style="color: #666; display: block; margin-bottom: 8px;">
+              Slug: <em>${article.slug}</em> | Status: <strong style="color: ${article.status === 'published' ? '#28a745' : '#ffc107'}">${article.status}</strong>
+            </small>
 
-  <h3 style="margin-top: 0; color: #222;">${article.title}</h3>
-  
-  <p style="line-height: 1.5; color: #333; margin-top: 8px;">${article.content}</p>
-</div>
-
+            <h3 style="margin-top: 0; color: #222;">${article.title}</h3>
+            
+            ${article.image ? `<img src="http://localhost:3000${article.image}" alt="Article Image" class="article-image" />` : ''}
+            
+            <p style="line-height: 1.5; color: #333; margin-top: 8px;">${article.content || 'Konten tidak tersedia'}</p>
+            
+            ${article.revisions && article.revisions.length > 0 ? `
+              <div class="revisions">
+                <strong>Riwayat Revisi (${article.revisions.length}):</strong>
+                ${article.revisions.slice(0, 3).map(rev => `
+                  <div class="revision-item">• ${new Date(rev.updatedAt).toLocaleString()}</div>
+                `).join('')}
+                ${article.revisions.length > 3 ? `<div class="revision-item">... dan ${article.revisions.length - 3} revisi lainnya</div>` : ''}
+              </div>
+            ` : ''}
+            
+            <small style="color: #888; display: block; margin-top: 12px;">
+              Terakhir diupdate: ${new Date(article.updatedAt).toLocaleString()}
+            </small>
+          </div>
         `).join('');
       } catch (err) {
-        document.getElementById('readResult').innerText = 'Gagal memuat data.';
+        document.getElementById('readResult').innerHTML = '<p class="error">Gagal memuat data artikel.</p>';
+      }
+    }
+
+    async function loadArticleForUpdate() {
+      const id = document.getElementById('updateId').value;
+      if (!id) {
+        showResult('updateResult', 'Masukkan ID artikel terlebih dahulu!', false);
+        return;
+      }
+
+      try {
+        const res = await fetch(API_BASE);
+        const articles = await res.json();
+        const article = articles.find(a => a.id == id);
+        
+        if (!article) {
+          showResult('updateResult', 'Artikel tidak ditemukan!', false);
+          return;
+        }
+
+        document.getElementById('updateTitle').value = article.title || '';
+        document.getElementById('updateSlug').value = article.slug || '';
+        document.getElementById('updateStatus').value = article.status || 'draft';
+        document.getElementById('updateContent').value = article.content || '';
+        
+        showResult('updateResult', 'Data artikel berhasil dimuat!', true);
+      } catch (err) {
+        showResult('updateResult', 'Gagal memuat data artikel.', false);
       }
     }
 
     async function updateArticle() {
       const id = document.getElementById('updateId').value;
-      const data = {
-        title: document.getElementById('updateTitle').value,
-        slug: document.getElementById('updateSlug').value,
-        status: document.getElementById('updateStatus').value,
-        content: document.getElementById('updateContent').value,
-      };
+      const title = document.getElementById('updateTitle').value;
+      const slug = document.getElementById('updateSlug').value;
+      const status = document.getElementById('updateStatus').value;
+      const content = document.getElementById('updateContent').value;
+      const imageFile = document.getElementById('updateImage').files[0];
+
+      if (!id) {
+        showResult('updateResult', 'ID artikel diperlukan!', false);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('title', title);
+      formData.append('slug', slug);
+      formData.append('status', status);
+      formData.append('content', content);
+      if (imageFile) {
+        formData.append('image', imageFile);
+      }
 
       try {
-        const res = await fetch(`http://localhost:3000/api/articles/${id}`, {
+        const res = await fetch(`${API_BASE}/${id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
+          body: formData,
         });
         const result = await res.json();
-        document.getElementById('updateResult').innerText = res.ok ? result.message || 'Berhasil diupdate.' : result.error;
+        
+        if (res.ok) {
+          showResult('updateResult', result.message || 'Artikel berhasil diupdate!', true);
+        } else {
+          showResult('updateResult', result.error || 'Gagal update artikel.', false);
+        }
       } catch (err) {
-        document.getElementById('updateResult').innerText = 'Gagal update artikel.';
+        showResult('updateResult', 'Terjadi kesalahan jaringan.', false);
+      }
+    }
+
+    async function previewDelete() {
+      const id = document.getElementById('deleteId').value;
+      if (!id) {
+        showResult('deleteResult', 'Masukkan ID artikel terlebih dahulu!', false);
+        return;
+      }
+
+      try {
+        const res = await fetch(API_BASE);
+        const articles = await res.json();
+        const article = articles.find(a => a.id == id);
+        
+        if (!article) {
+          document.getElementById('deletePreview').innerHTML = '<p class="error">Artikel tidak ditemukan!</p>';
+          return;
+        }
+
+        document.getElementById('deletePreview').innerHTML = `
+          <div class="article" style="border: 2px solid #dc3545;">
+            <h4>Preview Artikel yang akan dihapus:</h4>
+            <p><strong>ID:</strong> ${article.id}</p>
+            <p><strong>Judul:</strong> ${article.title}</p>
+            <p><strong>Slug:</strong> ${article.slug}</p>
+            <p><strong>Status:</strong> ${article.status}</p>
+            <p><strong>Konten:</strong> ${article.content ? article.content.substring(0, 100) + '...' : 'Tidak ada'}</p>
+          </div>
+        `;
+      } catch (err) {
+        document.getElementById('deletePreview').innerHTML = '<p class="error">Gagal memuat preview artikel.</p>';
       }
     }
 
     async function deleteArticle() {
       const id = document.getElementById('deleteId').value;
+      if (!id) {
+        showResult('deleteResult', 'ID artikel diperlukan!', false);
+        return;
+      }
+
+      if (!confirm('Apakah Anda yakin ingin menghapus artikel ini? Tindakan ini tidak dapat dibatalkan.')) {
+        return;
+      }
+
       try {
-        const res = await fetch(`http://localhost:3000/api/articles/${id}`, {
+        const res = await fetch(`${API_BASE}/${id}`, {
           method: 'DELETE',
         });
         const result = await res.json();
-        document.getElementById('deleteResult').innerText = res.ok ? result.message || 'Berhasil dihapus.' : result.error;
+        
+        if (res.ok) {
+          showResult('deleteResult', result.message || 'Artikel berhasil dihapus!', true);
+          document.getElementById('deletePreview').innerHTML = '';
+          document.getElementById('deleteId').value = '';
+        } else {
+          showResult('deleteResult', result.error || 'Gagal menghapus artikel.', false);
+        }
       } catch (err) {
-        document.getElementById('deleteResult').innerText = 'Gagal hapus artikel.';
+        showResult('deleteResult', 'Terjadi kesalahan jaringan.', false);
       }
     }
+
+    // Load articles on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      loadArticles();
+    });
   </script>
 </body>
 

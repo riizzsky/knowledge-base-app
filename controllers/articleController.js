@@ -4,12 +4,14 @@ const Article = require('../models/Article');
 exports.createArticle = async (req, res) => {
   try {
     const { userId, title, slug, status, content } = req.body;
+    const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
 
     const metadata = await ArticleMetadata.create({ title, slug, status, UserId: userId });
 
     await Article.create({
       articleId: metadata.id,
       content,
+      image: imagePath,
       revisions: [{ updatedAt: new Date(), content }]
     });
 
@@ -37,6 +39,7 @@ exports.getAllArticles = async (req, res) => {
           createdAt: metadata.createdAt,
           updatedAt: metadata.updatedAt,
           content: content ? content.content : null,
+          image: content ? content.image : null, 
           revisions: content ? content.revisions : []
         };
       })
@@ -53,6 +56,7 @@ exports.getAllArticles = async (req, res) => {
 exports.updateArticle = async (req, res) => {
   const articleId = parseInt(req.params.id, 10); // pastikan dalam bentuk integer
   const { title, slug, status, content } = req.body;
+  const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
 
   try {
     // Update metadata (MySQL)
@@ -70,6 +74,11 @@ exports.updateArticle = async (req, res) => {
     }
 
     article.content = content;
+
+    if (imagePath) {
+      article.image = imagePath;
+    }
+
     article.revisions.push({ updatedAt: new Date(), content });
 
     await article.save();

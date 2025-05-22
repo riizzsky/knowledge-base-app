@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const ArticleSchema = new mongoose.Schema({
   articleId: Number, 
   content: String,
+  image: String,
   revisions: [
     {
       updatedAt: Date,

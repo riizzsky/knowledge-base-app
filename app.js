@@ -19,6 +19,7 @@ app.get('/', (req, res) => {
 app.use(cors(corsOptions)); // Terapkan CORS dengan konfigurasi
 
 app.use(express.json());
+app.use('/uploads', express.static('uploads'));
 
 const articleRoutes = require('./routes/articleRoutes');
 app.use('/api', articleRoutes);
